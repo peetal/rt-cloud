@@ -3,10 +3,11 @@ The Realtime fMRI Cloud Framework is an open-source software package that makes 
 
 ## How it works
 There are four general components:
-- **Data Server (ScannerDataService)**
+- **Data Server (sometimes called FileServer)**
   - Watches for new DICOM images written by the MRI scanner.
   - Sends the DICOM images to the projectInterface in the cloud.
   - Listens for requests from the cloud projectInterface to either read or write files (within restricted directories) on the scanner computer.
+  - Some examples of data servers are the ScannerDataService which forwards DICOM data as it arrives from the scanner, and the OpenNeuroService which can download and replay data from OpenNeuro.
 - **Project and Web Interface (ProjectServer)**
   - Runs in the cloud.
   - Provides a user interface to start/stop and configure a run.
@@ -36,12 +37,13 @@ A subjectService is started on the presentation computer. The subjecService list
 - [Wrapping Your Experiment Script with the RealTime Framework](docs/how-to-wrap-your-project.md)
 - [Running a Realtime Experiment](docs/how-to-run.md)
 - [Run Project in a Docker Container](docs/run-in-docker.md)
-- [Using BIDS Data Format in RT-Cloud](docs/using-bids-data.md)
 - [Providing Subject Feedback](docs/subject-feedback.md)
+- [Using BIDS Data Format in RT-Cloud](docs/using-bids-data.md)
+- [Using OpenNeuro data in RT-Cloud](docs/using-bids-data.md#replaying-data-from-openNeuro)
 
 
 ## Installation
-
+Note: Steps 1 and 2 below would normally be done on the cloud computer and step 3 on the scanner (control room) computer. However for testing and installing locally (such as on a laptop) simply complete steps 1 and 2 (step 3 is redundant with step 1 when all on the same computer).
 #### **Step 1: Install Mini-Conda and NodeJS**
 *On the cloud computer where processing will take place, do these steps*
 1. Check if you have mini-conda already installed. In a terminal run <code>conda -V</code>
@@ -51,6 +53,7 @@ A subjectService is started on the presentation computer. The subjecService list
         - <code>bash Miniconda3-latest-Linux-x86_64.sh -b</code>
 2. Check if you have Node.js and NPM installed. In a terminal run <code>node -v</code> and <code>npm -v</code>
     - **Update:** Node.js is now included in the conda environment which will be created in Step 5 below, 'Create the conda environment'
+    - The following instructions will install both Node and npm together.
     - *Mac Specific:* Install Node.js
         - Check if Homebrew 'brew' is installed run <code>brew -h</code>
             - [Install Homebrew](https://treehouse.github.io/installation-guides/mac/homebrew) if it is not installed
@@ -64,7 +67,8 @@ A subjectService is started on the presentation computer. The subjecService list
 *On the cloud computer where processing will take place, do these steps*
 1. Pull the source code <code>git clone https://github.com/brainiak/rt-cloud.git</code>
 2. <code>cd rt-cloud/</code>
-3. Get the local ip address *<local_ip_addr>*
+3. Get the local ip address *<local_ip_addr>*<br>
+(this be supplied to the ssl certificate to indicate the valid server)
     - *Mac Specific:* Google "what's my ip address"
     - *Linux Specific:* <code>hostname -i</code>
 4. Make a private key and an ssl certificate or copy an existing one into the certs directory<br>
@@ -73,14 +77,14 @@ A subjectService is started on the presentation computer. The subjecService list
 5. Create the conda environment<br>
     - <code>conda env create -f environment.yml</code>
     - <code>conda activate rtcloud</code>
-6. Install node module dependencies<br>
+6. Install node module dependencies (for the web server)<br>
     - <code>cd web; npm install; cd ..</code>
-7. Create a user:<br>
+7. Create a user (for the web server)<br>
     - <code>bash scripts/add-user.sh -u [new_username] -p [password]</code>
 
 
 #### **Step 3: Install ScannerDataService and/or SubjectService on the Console and Presentation Computers (All OS Types)**
-*On the console computer where DICOMs are written, do these steps*
+*On the console computer where DICOMs are written, do these steps. (Skip this step if intalling everything on one computer for testing)*
 1. Repeat Step 1.1 above to install Mini-Conda
 2. Clone the rt-cloud code <code>git clone https://github.com/brainiak/rt-cloud.git</code>
 3. Copy the ssl certificate created in Step 2.4 above to this computer's rt-cloud/certs directory

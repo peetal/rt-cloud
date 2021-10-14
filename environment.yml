@@ -6,7 +6,7 @@ channels:
 dependencies:
   - awscli
   - bcrypt
-  - brainiak
+  #- brainiak
   - boto3
   - dcm2niix
   - flake8
