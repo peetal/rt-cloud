@@ -77,9 +77,13 @@ def initialize_cfg(cfg):
     cfg.mni_bold_dir = os.path.join(cfg.func_dir, 'mni_bold') # where registered real time nifti be stored
     _check_dir(cfg.mni_bold_dir)
 
-    dicomDir_pattern = str(cfg.imgDir) + '/' + str(cfg.datestr) + '.' + str(cfg.subjectName) + '*'
-    print("pattern is: " + dicomDir_pattern)
-    cfg.dicomDir = glob.glob(dicomDir_pattern)[0]
+    
+    if cfg.location == "LCNI":
+        dicomDir_pattern = str(cfg.imgDir) + '/' + str(cfg.datestr) + '.' + str(cfg.subjectName) + '*'
+        cfg.dicomDir = glob.glob(dicomDir_pattern)[0]
+        print("Location is at LCNI, the DICOM directory pattern is: " + cfg.dicomDir)
+    elif cfg.location == "local":
+        print("Location is at local, doing local testing")
 
 
     # add path to important transformation matrix for real time registration
