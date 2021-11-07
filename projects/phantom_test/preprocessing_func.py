@@ -8,48 +8,27 @@ from utils import check_dimension, resample_image
 
 
 # used during initilization, for processing structrual image
+
+# It is important to set up the correct protocal with scan technicans! Specifically, MPRAGE could output 2 scans, one with 
+# distortion correction, one without, we would probably want the distortion corrected version. As a result, we would want the
+# scanner to only output one scan, which is the distortion corrected version. 
 class Struc:
 
-    def __init__(self, dicom_pattern, dicom_dir, code_dir, subj_id):
+    def __init__(self, struc_dicom_pattern, cfg):
         """
         dicom_pattern: the pattern of dicom file name used to locate the correct scan series for T1w image
-        dicom_dir: The directory of all dicom file 
-        code_dir: The directory of "phantom_test" folder
-        subj_id: subj_id, used for creating subject folder
-        """
-        self.dicom_pattern = dicom_pattern # dicom pattern needs to specify subject ID
-        self.dicom_dir = dicom_dir
-        self.code_dir = code_dir
-        self.subj_id = subj_id
-        self.subj_dir = os.path.join(self.code_dir, 'data', self.subj_id)
-        if not os.path.isdir(self.subj_dir):
-            os.makedirs(self.subj_dir)
-        else: 
-            print('Removing the current subject folder')
-            shutil.rmtree(self.subj_dir) 
-            os.makedirs(self.subj_dir)
+        dicomDir: The directory of all dicom file 
+        codeDir: The directory of "phantom_test" folder
+        subj_dir: the subject folder
         
-        self.struc_dir = os.path.join(self.subj_dir, 'struc_nii')
-        if not os.path.isdir(self.struc_dir):
-            os.mkdir(self.struc_dir)
-        else: 
-            print('Struc folder already exist')
-            return
-
-        # directory to store behavioral results and timing files 
-        self.beh_dir = os.path.join(self.subj_dir, 'beh')
-        if not os.path.isdir(self.beh_dir):
-            os.mkdir(self.beh_dir)
-            os.mkdir(os.path.join(self.beh_dir, "vol_data"))
-        else: 
-            shutil.rmtree(self.beh_dir)
-            os.makedirs(self.beh_dir)
-            os.mkdir(os.path.join(self.beh_dir, "vol_data"))
-
-
-
-    #def _search_dicom_full_dir(self): 
-        #Add this for LCNI
+        Note: 
+            Struc object would only be created when this is the first session for this subject. 
+        """
+        self.dicom_pattern = struc_dicom_pattern # dicom pattern needs to specify subject ID
+        self.dicom_dir = cfg.dicomDir
+        self.code_dir = cfg.codeDir
+        self.subj_dir = cfg.sub_dir
+        self.struc_dir = cfg.struc_dir
 
     def _mk_struc_dir(self): 
         # this step is not necessary if dcm2niix -n works properly. 
@@ -160,7 +139,7 @@ class Struc:
         output_str.append(f"Structrual image preprocessing takes {time_elapsed}s \n")
         
         # write out timing information for processing structural images. 
-        struc_file = open(os.path.join(self.beh_dir, "struc_file.txt"),"w")
+        struc_file = open(os.path.join(self.struc_dir, "struc_file.txt"),"w")
         struc_file.writelines(output_str)
         struc_file.close()
 
@@ -170,10 +149,7 @@ class Struc:
 # used during inilization, for creating reference bold image on standard space
 class RefBOLD:
 
-    def __init__(self,
-     dicom_pattern:str, volume_num:int, dicom_dir:str, code_dir:str, 
-     subj_id:str, linear:bool, useFastSeg:bool, roi_list:list
-     ):    
+    def __init__(self, dicomScanNamePattern_refbold, cfg, volume_num=5, linear=False, useFastSeg=True):    
 
         """
         dicom_pattern: the pattern of dicom file name used to locate the ref bold dicoms
@@ -181,7 +157,10 @@ class RefBOLD:
         volume_num: the number of volumes used for computing the ref BOLD 
         dicom_dir: The directory of all dicom file 
         code_dir: The directory of "phantom_test" folder
-        subj_id: subj_id, used for creating subject folder
+        sub_dir: subject folder
+        refBOLD_temp_dir: temp folder in the refbold directory to store halfway files.
+        beh_dir: store timing info for generating refbold images
+        sub_roi: store standard2func ROIs
         linear: boolean, linear or nonlinear registration 
         useFastSeg: boolean, whether to use FAST brain segmentation
         roi_list: a list of ROI directories that are on the standard 2mm space. All rois would be transformed on the subj func space
@@ -190,46 +169,21 @@ class RefBOLD:
         i.e., NOT in real time. Aim to implement this in initilization step. 
         """
 
-        self.dicom_pattern = dicom_pattern
+        self.dicom_pattern = dicomScanNamePattern_refbold
+        self.dicom_dir = cfg.dicomDir
+        self.code_dir = cfg.codeDir
+        self.subj_dir = cfg.sub_dir
+        self.roi_list = cfg.roi
+        self.sub_roi = cfg.roi_dir
+        self.beh_dir = cfg.beh
+        self.struc_dir = cfg.struc_dir
+        self.refBOLD_dir = cfg.ref_bold
+        self.refBOLD_temp_dir = cfg.ref_bold_temp_dir
         self.volumn_num = volume_num
-        self.dicom_dir = dicom_dir
-        self.code_dir = code_dir
-        self.subj_id = subj_id
-        self.subj_dir = os.path.join(self.code_dir, 'data', self.subj_id)
         self.linear = linear
         self.useFastSeg = useFastSeg
-        self.roi_list = roi_list
-
-        if not os.path.isdir(self.subj_dir):
-            print('Subject directory does not exist')
-            return
-
-        self.refBOLD_dir = os.path.join(self.subj_dir, 'func_nii', 'ref_bold')
-        self.refBOLD_temp_dir = os.path.join(self.subj_dir, 'func_nii', 'ref_bold', 'temp')
-        if not os.path.isdir(self.refBOLD_temp_dir):
-            os.makedirs(self.refBOLD_temp_dir)
-        else:
-            print('Removing existing refBOLD dir') # for debugging and testing
-            shutil.rmtree(self.refBOLD_temp_dir)
-            os.mkdir(self.refBOLD_temp_dir)
-
-        self.struc_dir = os.path.join(self.subj_dir, 'struc_nii')
-        if not os.path.isdir(self.struc_dir):
-            print('Struc folder does not exist')
-            return
-
-        # for each subject, create a roi folder for storing the standard2func ROI (subject-level)
-        self.sub_roi = os.path.join(self.subj_dir, 'roi_standard2func')
-        if not os.path.isdir(self.sub_roi):
-            os.mkdir(self.sub_roi)
-
-        # directory to store behavioral results and timing files 
-        self.beh_dir = os.path.join(self.subj_dir, 'beh')
-        if not os.path.isdir(self.beh_dir):
-            os.mkdir(self.beh_dir)
-
+        
         # files 
-        self.boldref_avg = os.path.join(self.refBOLD_dir,'refBOLD_avg')
         self.highres_brain = os.path.join(self.struc_dir, 'Struc_brain.nii.gz') # t1_brain
         self.highres_head = os.path.join(self.struc_dir, 'Struc.nii.gz') # t1
         self.highres_wmseg = os.path.join(self.refBOLD_temp_dir, 'func2struc_fast_wmseg.nii.gz') 
@@ -238,8 +192,10 @@ class RefBOLD:
         self.standard_mask = os.path.join(self.code_dir, 'data', 'standard', 'tpl-MNI152NLin2009cAsym_res-02_desc-brain_mask.nii.gz') # MNI brain mask
 
         # files to be created 
+        refbold_vol_avg_name = os.path.join(self.refBOLD_dir,'refBOLD_avg')
+        self.boldref_avg = refbold_vol_avg_name  # average of all volumes used to construct reference BOLD image. 
         func2struc_mat_name = os.path.join(self.refBOLD_temp_dir,'func2struc.mat')
-        self.func2struc_mat = func2struc_mat_name
+        self.func2struc_mat = func2struc_mat_name  
         struc2standard_mat_name = os.path.join(self.refBOLD_temp_dir, 'struc2standard.mat')
         self.struc2standard_mat = struc2standard_mat_name
         struc2standard_warp = os.path.join(self.refBOLD_temp_dir, 'struc2standard_warp.nii.gz')
@@ -254,7 +210,6 @@ class RefBOLD:
         self.standard2func_warp = standard2func_warp_name
         
 
-        
     def _dcm2nifti(self):
         
         time_start = time.time()
@@ -479,16 +434,6 @@ class RefBOLD:
         
         return None
 
-
-
-
-
-
-
-
-
-
-    
 
 # used in the phantom_test.py script, for real time newNifti2standard space registration. 
 class ProcessNewVol:

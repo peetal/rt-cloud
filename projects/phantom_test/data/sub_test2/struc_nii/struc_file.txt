@@ -1,0 +1,5 @@
+Structual dicoms for this subject: /Users/peetal/Desktop/example_dicom/struc, taking 0.0008380413055419922s 
+The highres T1w image: /Users/peetal/Documents/Github/rt-cloud/projects/phantom_test/data/sub_test2/struc_nii/Struc.nii, taking 1.8737480640411377s 
+The highres T1w brain: /Users/peetal/Documents/Github/rt-cloud/projects/phantom_test/data/sub_test2/struc_nii/Struc_brain.nii.gz, taking 6.06503701210022s 
+The highres T1w brain WM seg: /Users/peetal/Documents/Github/rt-cloud/projects/phantom_test/data/sub_test2/struc_nii/func2struc_fast_wmseg.nii.gz, taking 176.06534004211426s 
+Structrual image preprocessing takes 184.00516200065613s 

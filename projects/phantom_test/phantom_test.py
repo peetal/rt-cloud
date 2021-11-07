@@ -20,7 +20,7 @@ import scipy.io as sio
 import json
 from initialize import initialize_cfg
 from preprocessing_func import ProcessNewVol
-from utils import read_nifti, getOutputFilename, applymask
+from utils import read_nifti, getOutputFilename, applymask, config_run_dir
 
 with warnings.catch_warnings():
     if not verbose:
@@ -41,9 +41,6 @@ from rtCommon.clientInterface import ClientInterface
 from rtCommon.imageHandling import readRetryDicomFromDataInterface, convertDicomImgToNifti
 
 
-
-# obtain the full path for the configuration toml file
-defaultConfig = os.path.join(currPath, 'conf/sample.toml')
 
 
 def doRuns(cfg, dataInterface, subjInterface, webInterface):
@@ -66,112 +63,98 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
     OUTPUT:
         None.
     """
+    # cfg.scanNum is a list of scan number. 
+    for runNum, scanNum in enumerate(cfg.scanNum):
 
-    # variables we'll use throughout
-    scanNum = cfg.scanNum[0]
-    #runNum = cfg.runNum[0]
+        runNum = runNum + 1 # start from run 1
+        print(f"Doing run {runNum}, which is scan {scanNum}")
 
-    print(f"Doing scan {scanNum}")
+        # set up directory for this run, creating run dir, and subdirs under that run 
+        cfg = config_run_dir(cfg, runNum)
 
-    # the dicom pattern for incoming dicoms 
-    dicomScanNamePattern = stringPartialFormat(cfg.dicomNamePattern, 'SCAN', scanNum)
-    # for watchdog 
-    streamId = dataInterface.initScannerStream(cfg.dicomDir,
-                                               dicomScanNamePattern,
-                                               cfg.minExpectedDicomSize)
+        # the dicom pattern for incoming dicoms 
+        dicomScanNamePattern = stringPartialFormat(cfg.dicomNamePattern, 'SCAN', scanNum)
+        # set up for watchdog 
+        streamId = dataInterface.initScannerStream(cfg.dicomDir,
+                                                dicomScanNamePattern,
+                                                cfg.minExpectedDicomSize)
 
+        # preparing for plotting in webinterface 
+        webInterface.clearRunPlot(runNum)
 
-    # preparing for plotting in webinterface 
-    webInterface.clearRunPlot(scanNum)
-
-    num_total_TRs = 332  # number of TRs to use for example 1
-    
-    # for storing the ROI multivariate activation patterns and univariate activation measure 
-    roi_num =len(cfg.roi_standard2func_nonlinear)
-    roi_volumes = [np.sum(read_nifti(roi_file)) for roi_file in cfg.roi_standard2func_nonlinear] # the size of each roi 
-    roi_niimg = [read_nifti(roi_file, get_data = False) for roi_file in cfg.roi_standard2func_nonlinear] # read roi as niimg
-    
-    roi_avg_activations = np.zeros((roi_num, num_total_TRs)) # stored the ROI averaged activation. 
-    activation_pattern = [np.zeros((num_total_TRs, int(roi_vol))) for roi_vol in roi_volumes] # initialize a list of the size num_roi, each item is an array of the size (tr, roi_vol)
-
-    timing_info = []
-    for this_TR in list(range(1, num_total_TRs+1)):
-    
-        # declare variables that are needed to use in get data requests
-        timeout_file = 1000 # small number because of demo, can increase for real-time
-        dicomFilename = dicomScanNamePattern.format(TR=this_TR)
-
-        # get dicome file 
-        print(f'Processing TR {this_TR}')
-        dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout_file)
-
-        if dicomData is None:
-            print('Error: getImageData returned None') 
-            return
+        # total number of TR for this run
+        num_total_TRs = cfg.numTR_func_run  # number of TRs to use 
         
-        # dcm2nii and converting new nifti to mni template 
-        curTR_nifti = ProcessNewVol(dicomFilename, cfg)
-        #nifti_reg = curTR_nifti.register_new_nifti(mc = True) # Do not want to register on to MNI 
-        nifti_mc = curTR_nifti.dcm2nii_and_mc() # Just do things on the functional space.  
+        # for storing the ROI multivariate activation patterns and univariate activation measure 
+        roi_num = len(cfg.roi_standard2func_nonlinear)
+        roi_volumes = [np.sum(read_nifti(roi_file)) for roi_file in cfg.roi_standard2func_nonlinear] # the size of each roi 
+        roi_niimg = [read_nifti(roi_file, get_data = False) for roi_file in cfg.roi_standard2func_nonlinear] # read roi as niimg
         
-        # read in the new nifti file 
-        niftiObject = read_nifti(nifti_mc, get_data=False)
+        roi_avg_activations = np.zeros((roi_num, num_total_TRs)) # stored the ROI averaged activation. 
+        activation_pattern = [np.zeros((num_total_TRs, int(roi_vol))) for roi_vol in roi_volumes] # initialize a list of the size num_roi, each item is an array of the size (tr, roi_vol)
 
-        # take the average of ROI activation values
-        roi_patterns = [applymask(niftiObject, niimg) for niimg in roi_niimg]
-        roi_act_value = [np.mean(roi_pattern) for roi_pattern in roi_patterns] # one value fOR each ROI
-        roi_avg_activations[:,this_TR-1] = roi_act_value
-
-        # the activation pattern for each roi in the list 
-        for pattern, roi in zip(activation_pattern, roi_patterns):
-            pattern[this_TR-1,:] = roi[:,] 
-        #activation_pattern = [pattern[this_TR-1, roi[:,]] for pattern, roi in zip(activation_pattern, roi_patterns)]
-
-        # avg_niftiData = np.round(avg_niftiData,decimals=2)
-        print(f"The average ROI activation value for TR {this_TR} is {roi_act_value}")
+        timing_info = []
+        for this_TR in list(range(1, num_total_TRs+1)):
         
-        # create real time txt output file, and save for each tr 
-        text_to_save = '{0:.2f}'.format(roi_act_value[0]) 
-        file_name_to_save = getOutputFilename(scanNum, this_TR) # naming
-        full_file_name_to_save = os.path.join(cfg.beh_voldata, file_name_to_save)
-        try:
-            dataInterface.putFile(full_file_name_to_save, text_to_save)
-        except Exception as err:
-            print('Error putFile: ' + str(err))
-            return
+            # declare variables that are needed to use in get data requests
+            timeout_file = 20 # small number because of demo, can increase for real-time
+            dicomFilename = dicomScanNamePattern.format(TR=this_TR)
 
-        # plot on web interface 
-        webInterface.plotDataPoint(scanNum, int(this_TR), float(roi_act_value[0]))
+            # get dicome file 
+            print(f'Processing TR {this_TR}')
+            dicomData = dataInterface.getImageData(streamId, int(this_TR), timeout_file)
 
-        tr_done_timing = time.time() # timing for finish processing the current tr
-        timing_info.append({f'TR_{this_TR} done time':  tr_done_timing})
-    
-    # create the full path filename of where we want to save the activation values vector.
-    #   we're going to save things as .txt and .mat files
-    #output_textFilename = '/tmp/cloud_directory/tmp/avg_activations.txt'
-    #output_matFilename = os.path.join('/tmp/cloud_directory/tmp/avg_activations.mat')
+            if dicomData is None:
+                print('Error: getImageData returned None') 
+                return
+            
+            # dcm2nii and converting new nifti to mni template 
+            curTR_nifti = ProcessNewVol(dicomFilename, cfg)
+            #nifti_reg = curTR_nifti.register_new_nifti(mc = True) # Do not want to register on to MNI 
+            nifti_mc = curTR_nifti.dcm2nii_and_mc() # Just do things on the functional space.  
+            
+            # read in the new nifti file 
+            niftiObject = read_nifti(nifti_mc, get_data=False)
 
-    # use 'putFile' from the dataInterface to save the .txt file
-    #   INPUT:
-    #       [1] filename (full path!)
-    #       [2] data (that you want to write into the file)
+            # take the average of ROI activation values
+            roi_patterns = [applymask(niftiObject, niimg) for niimg in roi_niimg]
+            roi_act_value = [np.mean(roi_pattern) for roi_pattern in roi_patterns] # one value fOR each ROI
+            roi_avg_activations[:,this_TR-1] = roi_act_value
 
-    #dataInterface.putFile(output_textFilename, str(all_avg_activations))
+            # the activation pattern for each roi in the list 
+            for pattern, roi in zip(activation_pattern, roi_patterns):
+                pattern[this_TR-1,:] = roi[:,] 
+            #activation_pattern = [pattern[this_TR-1, roi[:,]] for pattern, roi in zip(activation_pattern, roi_patterns)]
 
-    # use sio.save mat from scipy to save the matlab file
-    #if verbose:
-    #    print("• save activation value as a matlab file to tmp folder")
-    #sio.savemat(output_matFilename, {'value':all_avg_activations})
+            # avg_niftiData = np.round(avg_niftiData,decimals=2)
+            print(f"The average ROI activation value for TR {this_TR} is {roi_act_value}")
+            
+            # create real time txt output file, and save for each tr 
+            text_to_save = '{0:.2f}'.format(roi_act_value[0]) 
+            file_name_to_save = getOutputFilename(scanNum, this_TR) # naming
+            full_file_name_to_save = os.path.join(cfg.beh_voldata, file_name_to_save)
+            try:
+                dataInterface.putFile(full_file_name_to_save, text_to_save)
+            except Exception as err:
+                print('Error putFile: ' + str(err))
+                return
 
-    timing_info_outputdir = os.path.join(cfg.beh, 'timinginfo.txt')
+            # plot on web interface 
+            webInterface.plotDataPoint(runNum, int(this_TR), float(roi_act_value[0]))
 
-    with open(timing_info_outputdir, 'w') as f:
-        json.dump(timing_info, f)
+            tr_done_timing = time.time() # timing for finish processing the current tr
+            timing_info.append({f'TR_{this_TR} done time':  tr_done_timing})
 
-    # save univariate and multivariate data for each ROI 
-    np.save(os.path.join(cfg.beh, 'roi_univaraite.npy'), roi_avg_activations) # (roiNum, trNum)
-    for idx, data in enumerate(activation_pattern):
-        np.save(os.path.join(cfg.beh, f'roi{idx}_multivariate.npy'), data) # the idx is based on toml input, of the shape (trNum, voxNum)
+        # save out timing info for this run
+        timing_info_outputdir = os.path.join(cfg.beh_run, 'timinginfo.txt')
+
+        with open(timing_info_outputdir, 'w') as f:
+            json.dump(timing_info, f)
+
+        # save univariate and multivariate data for each ROI 
+        np.save(os.path.join(cfg.beh_run, 'roi_univaraite.npy'), roi_avg_activations) # (roiNum, trNum)
+        for idx, data in enumerate(activation_pattern):
+            np.save(os.path.join(cfg.beh_run, f'roi{idx}_multivariate.npy'), data) # the idx is based on toml input, of the shape (trNum, voxNum)
 
     return
 
@@ -189,7 +172,7 @@ def main(argv=None):
 
     # Some generally recommended arguments to parse for all experiment scripts
     argParser = argparse.ArgumentParser()
-    argParser.add_argument('--config', '-c', default=defaultConfig, type=str,
+    argParser.add_argument('--config', '-c', type=str,
                            help='experiment config file (.json or .toml)')
     argParser.add_argument('--runs', '-r', default=None, type=str,
                            help='Comma separated list of run numbers')
