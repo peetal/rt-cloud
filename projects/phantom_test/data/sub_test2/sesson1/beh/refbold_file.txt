@@ -1,7 +1,0 @@
-dcm2nifti took 0.25808095932006836s 
-creating boldref took 0.5347390174865723s 
-computing func2struc info took 63.39835786819458s 
-computing struc2standard info took 249.13645315170288s 
-computing func2standard info 10.822829008102417s 
-Transforming ROI from standard to func took 0.9778411388397217s 
-Creating transformation info took 325.12854504585266s
