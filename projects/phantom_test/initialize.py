@@ -44,6 +44,9 @@ def _initialize_image(cfg):
         sub_struc = Struc(struc_dicom_pattern, cfg)
         sub_struc.run_sub_struc_preprocessing()
 
+    else: 
+        print('Not the first session, skip structure preprocessing. Go directly to ref BOLD.')
+
     # create reference bold image and register it to standard space 
     # importantly, to get the func2standard and standard2func mat (linear) or warp (nonlinear)
     dicomScanNamePattern_refbold = utils.stringPartialFormat(cfg.dicomNamePattern, 'SCAN', cfg.refBoldScanNum)

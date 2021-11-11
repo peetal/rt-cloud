@@ -97,7 +97,7 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         for this_TR in list(range(1, num_total_TRs+1)):
         
             # declare variables that are needed to use in get data requests
-            timeout_file = 20 # small number because of demo, can increase for real-time
+            timeout_file = 180 # small number because of demo, can increase for real-time
             dicomFilename = dicomScanNamePattern.format(TR=this_TR)
 
             # get dicome file 
@@ -199,7 +199,7 @@ def main(argv=None):
     # This will give us a dataInterface for retrieving files,
     # a subjectInterface for giving feedback, and a webInterface
     # for updating what is displayed on the experimenter's webpage.
-    clientInterfaces = ClientInterface(yesToPrompts=args.yesToPrompts)
+    clientInterfaces = ClientInterface(yesToPrompts=args.yesToPrompts, rpyc_timeout=180)
     dataInterface = clientInterfaces.dataInterface
     bidsInterface = clientInterfaces.bidsInterface
     subjInterface = clientInterfaces.subjInterface
