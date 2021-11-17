@@ -8,11 +8,12 @@ minExpectedDicomSize = 100000
 refBoldScanNum = 5                                  # refbold 
 strucScanNum = 14                                   # sturc
 scanNum = [6,7]                                       # Functional EPI 
-numTR_func_run = 101                                # Numer of TR!! NOT SECOND!! 
+runNum = [3,4]
+numTR_func_run = 10                                # Numer of TR!! NOT SECOND!! 
 subjectName = 'sub_test2'                            # This will be part of the folder name, need to be consistent with the scanner input. 
 sessionNum = 2                                      # the number of time the participant being scanned
 dicomNamePattern = "0414151_strongbad01{SCAN:03d}_{TR:04d}_001"
-roi = ["/Users/peetal/Documents/Github/rt-cloud/projects/phantom_test/data/roi/rsc_roi_big_resampled.nii.gz"]      # standard space ROI that we care about. 
+roi = ['/Users/peetal/Documents/Github/rt-cloud/projects/phantom_test/data/roi/roi1_mPFC_size_620_res-02.nii.gz']      
 
 ## Directory 
 dicomDir = '/Users/peetal/Desktop/example_dicom/'   

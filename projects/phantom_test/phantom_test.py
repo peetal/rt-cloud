@@ -64,9 +64,8 @@ def doRuns(cfg, dataInterface, subjInterface, webInterface):
         None.
     """
     # cfg.scanNum is a list of scan number. 
-    for runNum, scanNum in enumerate(cfg.scanNum):
+    for runNum, scanNum in zip(cfg.runNum, cfg.scanNum):
 
-        runNum = runNum + 1 # start from run 1
         print(f"Doing run {runNum}, which is scan {scanNum}")
 
         # set up directory for this run, creating run dir, and subdirs under that run 

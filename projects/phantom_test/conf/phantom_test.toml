@@ -5,17 +5,16 @@ location = 'LCNI'
 
 # Scan info 
 minExpectedDicomSize = 100000       
-refBoldScanNum = 7                                  # refbold 
-strucScanNum = 6                                    # sturc
-scanNum = [11]                                      # Functional EPI 
-numTR_func_run = 160                                # Numer of TR!! NOT SECOND!! 
+refBoldScanNum = ?                                  # refbold 
+strucScanNum = ?                                    # sturc
+scanNum = [?,?,?,?,?,?]                                      # Functional EPI 
+runNum = [?,?,?,?,?,?]
+numTR_func_run = 128                                # Numer of TR!! NOT SECOND!! 
 subjectName = 'sub_test'                            # This will be part of the folder name, need to be consistent with the scanner input. 
-datestr = '20211026'                                # This will be part of the folder name, need to be consistent with the scanner input. 
+datestr = '20211117'                                # This will be part of the folder name, need to be consistent with the scanner input. 
 sessionNum = 2                                      # the number of time the participant being scanned
-runNum = 1                                          # the number of functional run in this session. 
 dicomNamePattern = "001_{SCAN:06d}_{TR:06d}.dcm" 
-roi = ["/home/rtfmri/Documents/rt-cloud/projects/phantom_test/data/roi/rsc_roi_big_resampled.nii.gz"]      # standard space ROI that we care about. 
-
+roi = ['/home/rtfmri/Documents/rt-cloud/projects/phantom_test/data/roi/roi1_mPFC_size_620_res-02.nii.gz'] 
 
 ## Directory 
 imgDir = '/home/rtfmri/Documents/bridge'
